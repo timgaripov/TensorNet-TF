@@ -19,6 +19,7 @@ In BiBTeX format:
 
 # Prerequisites
 * [TensorFlow](https://www.tensorflow.org/)
+* [NumPy](http://www.numpy.org/)
 
 # MATLAB and Theano
 We also published a [MATLAB and Theano+Lasagne implementation](https://github.com/Bihaqo/TensorNet) in a separate repository.
