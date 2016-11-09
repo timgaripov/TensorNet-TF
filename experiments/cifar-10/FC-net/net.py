@@ -14,7 +14,7 @@ IMAGE_PIXELS = IMAGE_SIZE * IMAGE_SIZE * IMAGE_DEPTH
 
 opts = {}
 
-opts['hidden_units'] = [3072, 4096, 4096, 4096, 4096, 10]
+opts['hidden_units'] = [4096, 4096, 4096, 4096]
 opts['use_dropout'] = True
 opts['learning_rate_init'] = 1.0
 opts['learning_rate_decay_steps'] = 2000
@@ -54,28 +54,28 @@ def inference(images, train_phase):
     layers.append(images)
 
     cnt = len(opts['hidden_units'])
-    for i in range(cnt - 1):
-        n_in = opts['hidden_units'][i]
-        n_out = opts['hidden_units'][i + 1]
+    for i in range(cnt):
+        n_out = opts['hidden_units'][i]
 
         layers.append(tensornet.layers.linear(layers[-1],
-                                              n_in,
                                               n_out,
-                                              init=tn_init(2.0 / n_in),
                                               scope='linear_' + str(len(layers)),
-                                              use_biases=(i==cnt-2)))
-        if (i < cnt - 1):
-            layers.append(tensornet.layers.batch_normalization(layers[-1],
-                                                               [n_out],
-                                                               train_phase,
-                                                               scope='BN_' + str(len(layers)),
-                                                               ema_decay=0.8))
-            layers.append(tf.nn.relu(layers[-1],
-                                     name='relu_' + str(len(layers))))
-            
-            layers.append(tf.nn.dropout(layers[-1],
-                                            dropout_rate(0.77),
-                                            name='dropout_' + str(len(layers))))
+                                              biases_initializer=None))
+
+        layers.append(tensornet.layers.batch_normalization(layers[-1],
+                                                           train_phase,
+                                                           scope='BN_' + str(len(layers)),
+                                                           ema_decay=0.8))
+        layers.append(tf.nn.relu(layers[-1],
+                                 name='relu_' + str(len(layers))))
+        
+        layers.append(tf.nn.dropout(layers[-1],
+                                        dropout_rate(0.77),
+                                        name='dropout_' + str(len(layers))))
+
+    layers.append(tensornet.layers.linear(layers[-1],
+                                          NUM_CLASSES,
+                                          scope='linear_' + str(len(layers))))
            
     return layers[-1]
 

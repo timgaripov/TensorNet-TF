@@ -1,6 +1,15 @@
 import tensorflow as tf
+from .aux import get_var_wrap
 
-def batch_normalization(inp, shape, train_phase, scope, ema_decay=0.9, eps=1e-3):
+def batch_normalization(inp,
+                        train_phase,                        
+                        ema_decay=0.9,
+                        eps=1e-3,
+                        use_scale=True,
+                        use_shift=True,
+                        trainable=True,
+                        cpu_variables=False,
+                        scope=None):
     """Batch normalization layer
         Args:
             inp: input tensor [batch_el, ...]
@@ -12,8 +21,15 @@ def batch_normalization(inp, shape, train_phase, scope, ema_decay=0.9, eps=1e-3)
         Reutrns:
             out: normalizaed tensor of the same shape as inp
     """
-    with tf.name_scope(scope):
-        batch_mean, batch_variance = tf.nn.moments(inp, [0], name='moments')
+    with tf.variable_scope(scope):        
+        shape = inp.get_shape().as_list()
+        assert len(shape) in [2, 4]
+        n_out = shape[-1]
+        
+        if len(shape) == 2:
+            batch_mean, batch_variance = tf.nn.moments(inp, [0], name='moments')
+        else:
+            batch_mean, batch_variance = tf.nn.moments(inp, [0, 1, 2], name='moments')
         ema = tf.train.ExponentialMovingAverage(decay=ema_decay)
         def mean_variane_with_update():
             with tf.control_dependencies([ema.apply([batch_mean, batch_variance])]):
@@ -24,11 +40,24 @@ def batch_normalization(inp, shape, train_phase, scope, ema_decay=0.9, eps=1e-3)
                                  lambda: (ema.average(batch_mean),
                                           ema.average(batch_variance)))
                 
-        weights = tf.Variable(tf.ones(shape), name='weigths')
-        biases = tf.Variable(tf.zeros(shape), name='biases')
-
         std = tf.sqrt(variance + eps, name='std')
-        out = (inp - tf.expand_dims(mean, 0)) / tf.expand_dims(std, 0)
-        out = tf.mul(out, tf.expand_dims(weights, 0))
-        out = tf.add(out, tf.expand_dims(biases, 0), name='out')
+        out = (inp - mean) / std
+        if use_scale:
+            weights = get_var_wrap('weights',
+                                   shape=[n_out],
+                                   initializer=tf.ones_initializer,
+                                   trainable=trainable,
+                                   regularizer=None,
+                                   cpu_variable=cpu_variables)                   
+                                      
+            out = tf.mul(out, weights)
+        if use_shift:
+            biases = get_var_wrap('biases',
+                                  shape=[n_out],
+                                  initializer=tf.zeros_initializer,
+                                  trainable=trainable,
+                                  regularizer=None,
+                                  cpu_variable=cpu_variables)
+
+            out = tf.add(out, biases)
     return out

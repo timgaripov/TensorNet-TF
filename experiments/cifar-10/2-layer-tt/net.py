@@ -65,12 +65,10 @@ def inference(images, train_phase):
                                      opts['inp_modes_1'],
                                      opts['out_modes_1'],
                                      opts['ranks_1'],
-                                     3.0, #0.1
-                                     'tt_' + str(len(layers)),
-                                     use_biases=False))
+                                     scope='tt_' + str(len(layers)),
+                                     biases_initializer=None))
 
     layers.append(tensornet.layers.batch_normalization(layers[-1],
-                                                       [np.prod(opts['out_modes_1'])],
                                                        train_phase,
                                                        scope='BN_' + str(len(layers)),
                                                        ema_decay=0.8)) 
@@ -87,12 +85,10 @@ def inference(images, train_phase):
                                      opts['inp_modes_2'],
                                      opts['out_modes_2'],
                                      opts['ranks_2'],
-                                     3.0, #0.07
-                                     'tt_' + str(len(layers)),
-                                     use_biases=False))
+                                     scope='tt_' + str(len(layers)),
+                                     biases_initializer=None))
 
     layers.append(tensornet.layers.batch_normalization(layers[-1],
-                                                       [np.prod(opts['out_modes_2'])],
                                                        train_phase,
                                                        scope='BN_' + str(len(layers)),
                                                        ema_decay=0.8)) 
@@ -107,9 +103,7 @@ def inference(images, train_phase):
 ##########################################
 
     layers.append(tensornet.layers.linear(layers[-1],                                          
-                                          np.prod(opts['out_modes_2']),
                                           NUM_CLASSES,
-                                          init=tn_init(2.0 / np.prod(opts['out_modes_2'])),
                                           scope='linear_' + str(len(layers))))
 
     return layers[-1]
