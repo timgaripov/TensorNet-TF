@@ -16,7 +16,7 @@ def tt_conv_direct(inp,
                    trainable=True,
                    cpu_variables=False,        
                    scope=None):
-    """ tt-conv-layer (convolution of full input tensor with tt-filters (make tt full then use conv2d))
+    """ tt-conv-layer (convolution of full input tensor with straightforward decomposed tt-filters (make tt full then use conv2d))
     Args:
         inp: input tensor, float - [batch_size, H, W, C]
         window: convolution window size, list [wH, wW]

@@ -12,12 +12,15 @@ def batch_normalization(inp,
                         scope=None):
     """Batch normalization layer
         Args:
-            inp: input tensor [batch_el, ...]
-            shape: input tensor shape
+            inp: input tensor [batch_el, ...] with 2 or 4 dimensions
             train_phase: tensor [1] of bool, train pahse indicator
-            scope: string, layer scope name
             ema_decay: moving average decay
-            eps: number added to variance, to exclude zero division
+            eps: number added to variance, to exclude division by zero
+            use_scale: bool flag of scale transform applying
+            use_shift: bool flag of shift transform applying
+            trainable: trainable variables flag, bool
+            cpu_variables: cpu variables flag, bool
+            scope: layer variable scope name, string
         Reutrns:
             out: normalizaed tensor of the same shape as inp
     """
