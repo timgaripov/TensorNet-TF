@@ -33,3 +33,26 @@ In BiBTeX format:
 
 # MATLAB and Theano
 We also published a [MATLAB and Theano+Lasagne implementation](https://github.com/Bihaqo/TensorNet) in a separate repository.
+
+# FAQ
+### What is _tensor_ anyway?
+Its just a synonym for a multidimensional array. For example a matrix is a 2-dimensional tensor.
+
+### But in the fully-connected case you work with matrices, why do you need tensor decompositions?
+Good point. Actually, the Tensor Train format  coincides the matrix low-rank format when applied to matrices. For this reason, there is a special _matrix Tensor Train format_, which basically does two things: reshapes the matrix into a tensor (say 10-dimensional) and permutes its dimensions in a special way; uses tensor decomposition on the resulting tensor. This way proved to be more efficient than the matrix low-rank format for the matrix of the fully-connected layer.
+
+### Where I can read more about this _Tensor Train_ format?
+Look at the original paper on it: Ivan Oseledets, Tensor-Train decomposition, 2011 [[pdf]](http://spring.inm.ras.ru/osel/wp-content/plugins/wp-publications-archive/openfile.php?action=open&file=28). You can also check out my [slides](http://www.slideshare.net/AlexanderNovikov8/tensor-train-decomposition-in-machine-learning), see from slide 3 to 14.
+
+By the way, **train** means like actual train, with wheels. The name comes from the pictures like the one below that illustrate the Tensor Train format and naturally look like a train (at least they say so).
+
+<img src="https://dl.dropboxusercontent.com/u/49234889/TT.png" alt="Tensor Train format" style="width: 200px;"/>
+
+### I have a matrix from a fully-connected layer. How do I convert it into the TT-FC layer?
+Actually, the idea was to train a network with the TT-FC layers from scratch as opposed to firstly learning a network with regular fully-connected layers and then converting them into TT-FC layers.
+
+But if you absolutely want to convert a matrix into the TT-FC layer (e.g. for debugging), you can do the following:
+# TODO
+
+### Are TensorFlow, MATLAB, and Theano implementations compatible?
+Unfortunately not (at least not yet).
