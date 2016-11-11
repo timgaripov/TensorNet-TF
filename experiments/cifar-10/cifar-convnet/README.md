@@ -1,6 +1,8 @@
 # Experiments with TT-conv layer
 
-This folder contains the framework we used to conduct experiments on the CIFAR-10 dataset.
+This folder contains the framework we used to conduct experiments on the CIFAR-10 dataset for the paper  
+_Ultimate tensorization: compressing convolutional and FC layers alike_   
+Timur Garipov, Dmitry Podoprikhin, Alexander Novikov, Dmitry Vetrov; _Learning with Tensors: Why Now and How?_, NIPS-2016 workshop (NIPS-2015) [[arXiv](https://arxiv.org/abs/1611.03214)].
 
 ## Training
 
