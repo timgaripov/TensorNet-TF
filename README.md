@@ -48,11 +48,11 @@ By the way, **train** means like actual train, with wheels. The name comes from 
 
 <img src="TT.png" alt="Tensor Train format" width="280"/>
 
-### I have a matrix from a fully-connected layer. How do I convert it into the TT-FC layer?
+<!-- ### I have a matrix from a fully-connected layer. How do I convert it into the TT-FC layer?
 Actually, the idea was to train a network with the TT-FC layers from scratch as opposed to firstly learning a network with regular fully-connected layers and then converting them into TT-FC layers.
 
 But if you absolutely want to convert a matrix into the TT-FC layer (e.g. for debugging), you can do the following:
-# TODO
+# TODO -->
 
 ### Are TensorFlow, MATLAB, and Theano implementations compatible?
 Unfortunately not (at least not yet).
