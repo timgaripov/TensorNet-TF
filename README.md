@@ -46,7 +46,7 @@ Look at the original paper on it: Ivan Oseledets, Tensor-Train decomposition, 20
 
 By the way, **train** means like actual train, with wheels. The name comes from the pictures like the one below that illustrate the Tensor Train format and naturally look like a train (at least they say so).
 
-![Tensor Train decomposition](https://dl.dropboxusercontent.com/u/49234889/TT.png =200x)
+![Tensor Train decomposition](https://dl.dropboxusercontent.com/u/49234889/TT.png)
 
 ### I have a matrix from a fully-connected layer. How do I convert it into the TT-FC layer?
 Actually, the idea was to train a network with the TT-FC layers from scratch as opposed to firstly learning a network with regular fully-connected layers and then converting them into TT-FC layers.
