@@ -59,7 +59,7 @@ Unfortunately not (at least not yet).
 
 
 ### I want to implement this in Caffe (or other library without autodiff). Any tips on doing the backward pass?
-Great! Write me when you're done or if you have questions along the way.  
+Great! Write us when you're done or if you have questions along the way.  
 The MATLAB version of the code has the [backward pass implementation](https://github.com/Bihaqo/TensorNet/blob/master/src/matlab/vl_nntt_backward.m) for TT-FC layer. But note that the forward pass in MATLAB and TensorFlow versions is implemented differently.
 
 ### Have you tried other tensor decompositions, like CP-decomposition?
