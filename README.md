@@ -59,4 +59,8 @@ Unfortunately not (at least not yet).
 
 
 ### I want to implement this in Caffe (or other library without autodiff). Any tips on doing the backward pass?
+Great! Write me when you're done or if you have questions along the way.  
 The MATLAB version of the code has the [backward pass implementation](https://github.com/Bihaqo/TensorNet/blob/master/src/matlab/vl_nntt_backward.m) for TT-FC layer. But note that the forward pass in MATLAB and TensorFlow versions is implemented differently.
+
+### Have you tried other tensor decompositions, like CP-decomposition?
+We haven't, but this paper uses CP-decomposition to compress the kernel of the convolutional layer: Lebedev V., Ganin Y. et al., [Speeding-up Convolutional Neural Networks Using Fine-tuned CP-Decomposition](https://arxiv.org/abs/1412.6553). They got nice compression results, but was not able to train CP-conv layers from scratch, only to train a network with regular convolutional layers, represent them in the CP-format, and when finetune the rest of the network. Even _finetuning_ an CP-conv layer diverges.
