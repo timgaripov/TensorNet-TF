@@ -7,7 +7,7 @@ import imp
 import datetime
 import shutil
 import time
-import tensorflow.python.platform
+#import tensorflow.python.platform
 import numpy as np
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
@@ -43,27 +43,28 @@ def batch(image, label, batch_size, name):
                                         num_threads=4,
                                         capacity=3 * FLAGS.batch_size + 20,
                                         name=name)
-    tf.image_summary('sumary/images/' + name, b_images)
+    tf.summary.image('sumary/images/' + name, b_images)
     return b_images, b_labels
 
-def tower_loss_and_eval(images, labels, train_phase, cpu_variables=False):
-    logits = net.inference(images, train_phase, cpu_variables=cpu_variables)
+def tower_loss_and_eval(images, labels, train_phase, reuse=None, cpu_variables=False):
+    with tf.variable_scope('inference', reuse=reuse):
+        logits = net.inference(images, train_phase, cpu_variables=cpu_variables)
     losses = net.losses(logits, labels)
     total_loss = tf.add_n(losses, name='total_loss')
 
-    loss_averages = tf.train.ExponentialMovingAverage(0.9, name='avg')
+    loss_averages = tf.train.ExponentialMovingAverage(0.99, name='avg')
     loss_averages_op = loss_averages.apply(losses + [total_loss])
 
     for l in losses + [total_loss]:
         loss_name = l.op.name
-        tf.scalar_summary(loss_name + ' (raw)', l)
-        tf.scalar_summary(loss_name, loss_averages.average(l))
+        tf.summary.scalar(loss_name + ' (raw)', l)
+        tf.summary.scalar(loss_name, loss_averages.average(l))
 
     with tf.control_dependencies([loss_averages_op]):
         total_loss = tf.identity(total_loss)
     evaluation = net.evaluation(logits, labels)
     return total_loss, evaluation
-    
+
 def average_gradients(tower_grads):
     average_grads = []
     for grad_and_vars in zip(*tower_grads):
@@ -71,7 +72,7 @@ def average_gradients(tower_grads):
         for g, _ in grad_and_vars:
             expanded_g = tf.expand_dims(g, 0)
             grads.append(expanded_g)
-        grad = tf.concat(0, grads)
+        grad = tf.concat(grads, 0)
         grad = tf.reduce_mean(grad, 0)
         grad_and_var = (grad, grad_and_vars[0][1])
         average_grads.append(grad_and_var)
@@ -82,9 +83,9 @@ def run_training(restore_chkpt=None):
     net = imp.load_source('net', FLAGS.net_module)
     with tf.Graph().as_default(), tf.device('/cpu:0'):
         train_phase = tf.Variable(True, trainable=False, name='train_phase', dtype=tf.bool, collections=[])
-        
+
         inp_data = input_data.get_input_data(FLAGS)
-        
+
         t_image, t_label = inp_data['train']['image_input'], inp_data['train']['label_input']
         t_image = net.aug_train(t_image, inp_data['aux'])
 
@@ -93,8 +94,9 @@ def run_training(restore_chkpt=None):
 
         v_images, v_labels = batch(v_image, v_label, FLAGS.batch_size * FLAGS.num_gpus, 'eval_batch')
 
-        v_images_split = tf.split(0, FLAGS.num_gpus, v_images)
-        v_labels_split = tf.split(0, FLAGS.num_gpus, v_labels)
+
+        v_images_split = tf.split(v_images, FLAGS.num_gpus)
+        v_labels_split = tf.split(v_labels, FLAGS.num_gpus)
 
         global_step = tf.get_variable('global_step',
                                       [],
@@ -102,7 +104,7 @@ def run_training(restore_chkpt=None):
                                       trainable=False)
         epoch_steps = inp_data['train']['images'].shape[0] / (FLAGS.batch_size)
         decay_steps = int(net.opts['num_epochs_per_decay'] * epoch_steps)
-        
+
         lr = tf.train.exponential_decay(net.opts['initial_learning_rate'],
                                         global_step,
                                         decay_steps,
@@ -110,17 +112,17 @@ def run_training(restore_chkpt=None):
                                         staircase=True)
 
         opt = tf.train.MomentumOptimizer(lr, 0.9)
-        
-        
-                
+
+
         tower_grads = []
         tower_evals = []
         tower_losses = []
         cpu_variables = FLAGS.num_gpus > 1
         for i in range(FLAGS.num_gpus):
+            reuse = i > 0
             with tf.device('/gpu:%d' % i):
                 with tf.name_scope('tower_%d' % i) as scope:
-                    
+
                     t_images, t_labels = batch(t_image, t_label, FLAGS.batch_size, 'train_batch')
 
                     images, labels = tf.cond(train_phase,
@@ -128,33 +130,33 @@ def run_training(restore_chkpt=None):
                                              lambda: (v_images_split[i], v_labels_split[i]))
 
 
-                    loss, evaluation = tower_loss_and_eval(images, labels, train_phase, cpu_variables)
+                    loss, evaluation = tower_loss_and_eval(images, labels, train_phase, reuse, cpu_variables)
                     tower_losses.append(loss)
                     tower_evals.append(evaluation)
-                    
 
-                    tf.get_variable_scope().reuse_variables()
+
                     summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, scope)
-                    
+
                     grads = opt.compute_gradients(loss)
 
                     tower_grads.append(grads)
 
+
         grads = average_gradients(tower_grads)
 
-        summaries.append(tf.scalar_summary('learning_rate', lr))
+        summaries.append(tf.summary.scalar('learning_rate', lr))
         for grad, var in grads:
             if grad is not None:
-                summaries.append(tf.histogram_summary('gradients/' + var.op.name, grad))
+                summaries.append(tf.summary.histogram('gradients/' + var.op.name, grad))
 
         apply_gradients_op = opt.apply_gradients(grads, global_step=global_step)
         with tf.control_dependencies([apply_gradients_op]):
             normalize_gs = global_step.assign_add(FLAGS.num_gpus - 1)
 
         for var in tf.trainable_variables():
-            summaries.append(tf.histogram_summary('variables/' + var.op.name, var))
+            summaries.append(tf.summary.histogram('variables/' + var.op.name, var))
 
-        
+
         train_loss = tf.Variable(5.0, trainable=False, name='train_loss', dtype=tf.float32)
         train_precision = tf.Variable(0.0, trainable=False, name='train_precision', dtype=tf.float32)
 
@@ -165,9 +167,9 @@ def run_training(restore_chkpt=None):
             new_precision = tf.reduce_mean(tf.cast(tower_evals[i], tf.float32))
             train_lp_updates.append(train_precision.assign_sub((1.0 - train_lp_decay) * (train_precision - new_precision)))
         train_lp_update = tf.group(*train_lp_updates)
-        
-        summaries.append(tf.scalar_summary('loss/train', train_loss))
-        summaries.append(tf.scalar_summary('precision/train', train_precision))
+
+        summaries.append(tf.summary.scalar('loss/train', train_loss))
+        summaries.append(tf.summary.scalar('precision/train', train_precision))
 
         validation_loss = tf.Variable(0.0, trainable=False, dtype=tf.float32)
         validation_precision = tf.Variable(0.0, trainable=False, dtype=tf.float32)
@@ -176,25 +178,27 @@ def run_training(restore_chkpt=None):
         vl_assign_op = validation_loss.assign(assign_ph)
         vp_assign_op = validation_precision.assign(assign_ph)
 
-        summaries.append(tf.scalar_summary('loss/validation', validation_loss))
-        summaries.append(tf.scalar_summary('precision/validation', validation_precision))
+        summaries.append(tf.summary.scalar('loss/validation', validation_loss))
+        summaries.append(tf.summary.scalar('precision/validation', validation_precision))
 
 
-        variable_averages =  tf.train.ExponentialMovingAverage(0.999, global_step)
+        variable_averages =  tf.train.ExponentialMovingAverage(0.9, global_step, zero_debias=True)
         variables_averages_op = variable_averages.apply(tf.trainable_variables())
-        
+
         train_op = tf.group(apply_gradients_op, normalize_gs, variables_averages_op, train_lp_update)
-        
+
         qrunners = tf.get_collection(tf.GraphKeys.QUEUE_RUNNERS)
         for qr in qrunners:
-            summaries.append(tf.scalar_summary('queues/size/' + qr.name, qr.queue.size()))
+            summaries.append(tf.summary.scalar('queues/size/' + qr.name, qr.queue.size()))
 
-        saver = tf.train.Saver(tf.all_variables())
+        saver = tf.train.Saver(tf.global_variables())
         ema_saver = tf.train.Saver(variable_averages.variables_to_restore())
 
-        summary_op = tf.merge_summary(summaries)
 
-        init = tf.initialize_all_variables()
+
+        summary_op = tf.summary.merge(summaries)
+
+        init = tf.global_variables_initializer()
 
         switch_train = train_phase.assign(True)
         switch_eval = train_phase.assign(False)
@@ -208,25 +212,27 @@ def run_training(restore_chkpt=None):
 
         sess.run(init)
 
-        coord = tf.train.Coordinator()        
+        coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-        
-        summary_writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
-        
-    
-                
+
+
+
+        summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
+
+
+
         sys.stdout.write('\n\n')
         epoch_steps = int(inp_data['train']['images'].shape[0] / FLAGS.batch_size + 0.5)
         start_epoch = 0
         if restore_chkpt is not None:
             saver.restore(sess, restore_chkpt)
             sys.stdout.write('Previously started training session restored from "%s".\n' % restore_chkpt)
-            start_epoch = int(sess.run(global_step)) // epoch_steps 
+            start_epoch = int(sess.run(global_step)) // epoch_steps
         sys.stdout.write('Starting with epoch #%d.\n' % (start_epoch + 1))
         for epoch in range(start_epoch, FLAGS.max_epochs):
             sys.stdout.write('\n')
-            _ = sess.run(switch_train)            
-            
+            _ = sess.run(switch_train)
+
 
             sys.stdout.write('Epoch #%d. [Train]\n' % (epoch + 1))
             sys.stdout.flush()
@@ -234,14 +240,14 @@ def run_training(restore_chkpt=None):
             step = 0
             log_steps = FLAGS.log_steps
 
-            fmt_str = 'Epoch #%d [%s]. Step %d/%d (%d%%). Speed = %.2f sec/b, %.2f img/sec. Batch_loss = %.2f. Batch_precision = %.2f' 
+            fmt_str = 'Epoch #%d [%s]. Step %d/%d (%d%%). Speed = %.2f sec/b, %.2f img/sec. Batch_loss = %.2f. Batch_precision = %.2f'
             while step < epoch_steps:
                 start_time = time.time()
                 _, loss_value, eval_value = sess.run([train_op, loss, evaluation])
                 duration = time.time() - start_time
 
                 step += FLAGS.num_gpus
-                
+
                 assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
                 cum_t += duration
                 sec_per_batch = duration / FLAGS.num_gpus
@@ -269,7 +275,7 @@ def run_training(restore_chkpt=None):
                     summary_str = sess.run(summary_op)
                     glob_step = epoch * epoch_steps + step
                     summary_writer.add_summary(summary_str, glob_step)
-                    
+
             sys.stdout.write('\r')
             sys.stdout.write(fmt_str %
                 (epoch + 1,
@@ -285,7 +291,7 @@ def run_training(restore_chkpt=None):
 
             sys.stdout.write('\n')
             train_loss_val, train_precision_val = sess.run([train_loss, train_precision])
-            sys.stdout.write('Epoch #%d. Train loss = %.2f. Train precision = %.2f.\n' % 
+            sys.stdout.write('Epoch #%d. Train loss = %.2f. Train precision = %.2f.\n' %
                 (epoch + 1,
                 train_loss_val,
                 train_precision_val * 100.0))
@@ -298,15 +304,15 @@ def run_training(restore_chkpt=None):
             sys.stdout.write('Epoch #%d. [Evaluation]\n' % (epoch + 1))
             ema_saver.restore(sess, chkpt)
             sys.stdout.write('EMA variables restored.\n')
-    
-           
+
+
             eval_cnt = inp_data['validation']['images'].shape[0]
 
             eval_steps = (eval_cnt + FLAGS.batch_size - 1) // FLAGS.batch_size
             eval_correct = 0
             eval_loss = 0.0
             cum_t = 0.0
-            while eval_cnt > 0:                
+            while eval_cnt > 0:
                 start_time = time.time()
                 eval_values_and_losses = sess.run(tower_evals + tower_losses)
                 duration = time.time() - start_time
@@ -317,18 +323,18 @@ def run_training(restore_chkpt=None):
                 eval_losses = eval_values_and_losses[-FLAGS.num_gpus:]
 
                 cnt = min(eval_values.shape[0], eval_cnt)
-               
+
                 eval_correct += np.sum(eval_values[:cnt])
                 eval_loss += np.sum(eval_losses) * FLAGS.batch_size
-                 
+
                 eval_cnt -= cnt
-               
+
                 cur_step = eval_steps - (eval_cnt + FLAGS.batch_size - 1) // FLAGS.batch_size
                 sec_per_batch = duration / FLAGS.num_gpus
                 img_per_sec = FLAGS.num_gpus * FLAGS.batch_size / duration
 
                 cum_t += duration
-                
+
                 if cum_t > 0.5:
                     cum_t = 0.0
                     sys.stdout.write('\r')
@@ -362,17 +368,17 @@ def run_training(restore_chkpt=None):
 
             eval_precision = eval_correct / inp_data['validation']['images'].shape[0]
             eval_loss = eval_loss / inp_data['validation']['images'].shape[0]
-            sys.stdout.write('Epoch #%d. Validation loss = %.2f. Validation precision = %.2f.\n' % 
+            sys.stdout.write('Epoch #%d. Validation loss = %.2f. Validation precision = %.2f.\n' %
                 (epoch + 1,
                 eval_loss,
                 eval_precision * 100.0))
-           
+
             saver.restore(sess, chkpt)
             sys.stdout.write('Variables restored.\n\n')
 
             sess.run(vl_assign_op, feed_dict={assign_ph: eval_loss})
             sess.run(vp_assign_op, feed_dict={assign_ph: eval_precision})
- 
+
             w = os.get_terminal_size().columns
             sys.stdout.write(('=' * w + '\n') * 2)
 
@@ -383,7 +389,7 @@ def run_training(restore_chkpt=None):
 
 
 
-            
+
 
 
 def main(_):

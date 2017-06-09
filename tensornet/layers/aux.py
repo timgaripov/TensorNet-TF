@@ -13,10 +13,9 @@ def get_var_wrap(name,
                                    shape=shape,
                                    initializer=initializer,
                                    regularizer=regularizer,
-                                   trainable=trainable)    
+                                   trainable=trainable)
     return tf.get_variable(name,
                            shape=shape,
                            initializer=initializer,
                            regularizer=regularizer,
                            trainable=trainable)
-    

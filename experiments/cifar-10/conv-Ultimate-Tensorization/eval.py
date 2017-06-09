@@ -36,7 +36,8 @@ flags.DEFINE_string('data_dir', '../data/', 'Directory to put the training data.
 flags.DEFINE_boolean('log_device_placement', False, """Whether to log device placement.""")
 
 def tower_loss_and_eval(images, labels, train_phase, cpu_variables=False):
-    logits = net.inference(images, train_phase, cpu_variables=cpu_variables)
+    with tf.variable_scope('inference', reuse=False):
+        logits = net.inference(images, train_phase, cpu_variables=cpu_variables)
     losses = net.losses(logits, labels)
     total_loss = tf.add_n(losses, name='total_loss')
     evaluation = net.evaluation(logits, labels)
@@ -137,7 +138,7 @@ def run_eval(chkpt):
         variable_averages =  tf.train.ExponentialMovingAverage(0.999)
         variables_averages_op = variable_averages.apply(tf.trainable_variables())
 
-        saver = tf.train.Saver(tf.all_variables())
+        saver = tf.train.Saver(tf.global_variables())
         ema_saver = tf.train.Saver(variable_averages.variables_to_restore())
 
         sess = tf.Session(config=tf.ConfigProto(

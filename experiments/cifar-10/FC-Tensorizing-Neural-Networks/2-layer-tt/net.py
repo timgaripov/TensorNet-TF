@@ -4,7 +4,7 @@ import numpy as np
 import sys
 
 
-sys.path.append('../../../')
+sys.path.append('../../../../')
 import tensornet
 
 NUM_CLASSES = 10
@@ -29,7 +29,7 @@ opts['learning_rate_decay_weight'] = 0.64
 
 def placeholder_inputs():
     """Generate placeholder variables to represent the input tensors.
-            
+
     Returns:
         images_ph: Images placeholder.
         labels_ph: Labels placeholder.
@@ -56,11 +56,11 @@ def inference(images, train_phase):
 
     dropout_rate = lambda p: (opts['use_dropout'] * (p - 1.0)) * tf.to_float(train_phase) + 1.0
 
-    
-    layers = []
-    layers.append(images)    
 
-    
+    layers = []
+    layers.append(images)
+
+
     layers.append(tensornet.layers.tt(layers[-1],
                                      opts['inp_modes_1'],
                                      opts['out_modes_1'],
@@ -71,15 +71,15 @@ def inference(images, train_phase):
     layers.append(tensornet.layers.batch_normalization(layers[-1],
                                                        train_phase,
                                                        scope='BN_' + str(len(layers)),
-                                                       ema_decay=0.8)) 
-    
+                                                       ema_decay=0.8))
+
     layers.append(tf.nn.relu(layers[-1],
                              name='relu_' + str(len(layers))))
     layers.append(tf.nn.dropout(layers[-1],
                                 dropout_rate(0.6),
                                 name='dropout_' + str(len(layers))))
 
- 
+
 ##########################################
     layers.append(tensornet.layers.tt(layers[-1],
                                      opts['inp_modes_2'],
@@ -91,18 +91,18 @@ def inference(images, train_phase):
     layers.append(tensornet.layers.batch_normalization(layers[-1],
                                                        train_phase,
                                                        scope='BN_' + str(len(layers)),
-                                                       ema_decay=0.8)) 
- 
+                                                       ema_decay=0.8))
+
     layers.append(tf.nn.relu(layers[-1],
                              name='relu_' + str(len(layers))))
-    
+
     layers.append(tf.nn.dropout(layers[-1],
                                 dropout_rate(0.6),
                                 name='dropout_' + str(len(layers))))
-    
+
 ##########################################
 
-    layers.append(tensornet.layers.linear(layers[-1],                                          
+    layers.append(tensornet.layers.linear(layers[-1],
                                           NUM_CLASSES,
                                           scope='linear_' + str(len(layers))))
 
@@ -123,25 +123,25 @@ def loss(logits, labels):
     batch_size = tf.size(labels)
     labels = tf.expand_dims(labels, 1)
     indices = tf.expand_dims(tf.range(0, batch_size), 1)
-    concated = tf.concat(1, [indices, labels])
+    concated = tf.concat([indices, labels], 1)
     onehot_labels = tf.sparse_to_dense(concated,
-                                       tf.pack([batch_size, NUM_CLASSES]), 1.0, 0.0)
-    
+                                       tf.shape(logits), 1.0, 0.0)
 
-    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits,
-                                                            onehot_labels,
+
+    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits,
+                                                            labels=onehot_labels,
                                                             name='xentropy')
     loss = tf.reduce_mean(cross_entropy, name='loss')
-    tf.scalar_summary('loss', loss, name='summary/loss')
+    tf.summary.scalar('summary/loss', loss)
     return loss
-    
+
 def training(loss):
-    """Sets up the training Ops.    
+    """Sets up the training Ops.
     Creates an optimizer and applies the gradients to all trainable variables.
     The Op returned by this function is what must be passed to the
     `sess.run()` call to cause the model to train.
     Args:
-        loss: Loss tensor, from loss().       
+        loss: Loss tensor, from loss().
     Returns:
         train_op: The Op for training.
     """
@@ -153,10 +153,10 @@ def training(loss):
                                                opts['learning_rate_decay_weight'],
                                                staircase=True,
                                                name='learning_rate')
-    tf.scalar_summary('learning_rate', learning_rate, name='summary/learning_rate')
+    tf.summary.scalar('summary/learning_rate', learning_rate)
     # Create the gradient descent optimizer with the given learning rate.
     optimizer = tf.train.GradientDescentOptimizer(learning_rate, name='optimizer')
-        
+
     grads_and_vars = optimizer.compute_gradients(loss)
     train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step, name='train_op')
     return train_op

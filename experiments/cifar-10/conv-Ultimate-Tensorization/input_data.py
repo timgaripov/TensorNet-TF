@@ -13,10 +13,10 @@ def get_validation_data(data_dir):
     images = np.reshape(f['validation_images'], [-1, 32, 32, 3])
     labels = f['validation_labels']
     return images, labels
- 
+
 
 def get_input_data(FLAGS):
-    t_images, t_labels = get_train_data(FLAGS.data_dir)    
+    t_images, t_labels = get_train_data(FLAGS.data_dir)
     t_cnt = t_images.shape[0]
     train_images_ph = tf.placeholder(dtype=tf.float32, shape=[t_cnt, 32, 32, 3], name='train_images_ph')
     train_labels_ph = tf.placeholder(dtype=tf.int32, shape=[t_cnt], name='train_labels_ph')

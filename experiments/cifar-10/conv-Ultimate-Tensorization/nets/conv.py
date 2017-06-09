@@ -29,7 +29,7 @@ def aug_eval(image, aux):
     aug_image = (image - aux['mean']) / aux['std']
     return aug_image
 
-def inference(images, train_phase, cpu_variables=False):
+def inference(images, train_phase, reuse=None, cpu_variables=False):
     """Build the model up to where it may be used for inference.
     Args:
         images: Images placeholder.
@@ -42,16 +42,19 @@ def inference(images, train_phase, cpu_variables=False):
 
     dropout_rate = lambda p: (opts['use_dropout'] * (p - 1.0)) * tf.to_float(train_phase) + 1.0
 
+
+
     layers = []
     layers.append(images)
-    
+
     layers.append(tensornet.layers.conv(layers[-1],
                                         64,
                                         [3, 3],
                                         cpu_variables=cpu_variables,
-                                        biases_initializer=None,
+                                        biases_initializer=tf.zeros_initializer(),
                                         scope='conv1.1'))
-    
+
+
     layers.append(tensornet.layers.batch_normalization(layers[-1],
                                                        train_phase,
                                                        cpu_variables=cpu_variables,
@@ -59,14 +62,14 @@ def inference(images, train_phase, cpu_variables=False):
 
     layers.append(tf.nn.relu(layers[-1],
                              name='relu1.1'))
- 
+
     layers.append(tensornet.layers.conv(layers[-1],
                                         64,
                                         [3, 3],
                                         cpu_variables=cpu_variables,
-                                        biases_initializer=None,
+                                        biases_initializer=tf.zeros_initializer(),
                                         scope='conv1.2'))
-    
+
     layers.append(tensornet.layers.batch_normalization(layers[-1],
                                                        train_phase,
                                                        cpu_variables=cpu_variables,
@@ -74,22 +77,21 @@ def inference(images, train_phase, cpu_variables=False):
 
     layers.append(tf.nn.relu(layers[-1],
                              name='relu1.2'))
-    
-   
+
 
     layers.append(tf.nn.max_pool(layers[-1],
                                  [1, 3, 3, 1],
-                                 [1, 2, 2, 1], 
+                                 [1, 2, 2, 1],
                                  'SAME',
                                  name='max_pool1'))
-    
+
     layers.append(tensornet.layers.conv(layers[-1],
                                         128,
                                         [3, 3],
                                         cpu_variables=cpu_variables,
-                                        biases_initializer=None,
+                                        biases_initializer=tf.zeros_initializer(),
                                         scope='conv2.1'))
-    
+
     layers.append(tensornet.layers.batch_normalization(layers[-1],
                                                        train_phase,
                                                        cpu_variables=cpu_variables,
@@ -97,14 +99,14 @@ def inference(images, train_phase, cpu_variables=False):
 
     layers.append(tf.nn.relu(layers[-1],
                              name='relu2.1'))
- 
+
     layers.append(tensornet.layers.conv(layers[-1],
                                         128,
                                         [3, 3],
                                         cpu_variables=cpu_variables,
-                                        biases_initializer=None,
+                                        biases_initializer=tf.zeros_initializer(),
                                         scope='conv2.2'))
-    
+
     layers.append(tensornet.layers.batch_normalization(layers[-1],
                                                        train_phase,
                                                        cpu_variables=cpu_variables,
@@ -112,12 +114,11 @@ def inference(images, train_phase, cpu_variables=False):
 
     layers.append(tf.nn.relu(layers[-1],
                              name='relu2.2'))
-    
-   
+
 
     layers.append(tf.nn.max_pool(layers[-1],
                                  [1, 3, 3, 1],
-                                 [1, 2, 2, 1], 
+                                 [1, 2, 2, 1],
                                  'SAME',
                                  name='max_pool2'))
 
@@ -126,9 +127,9 @@ def inference(images, train_phase, cpu_variables=False):
                                         [3, 3],
                                         padding='VALID',
                                         cpu_variables=cpu_variables,
-                                        biases_initializer=None,
+                                        biases_initializer=tf.zeros_initializer(),
                                         scope='conv3.1'))
-    
+
     layers.append(tensornet.layers.batch_normalization(layers[-1],
                                                        train_phase,
                                                        cpu_variables=cpu_variables,
@@ -136,15 +137,16 @@ def inference(images, train_phase, cpu_variables=False):
 
     layers.append(tf.nn.relu(layers[-1],
                              name='relu3.1'))
- 
+
+
     layers.append(tensornet.layers.conv(layers[-1],
                                         128,
                                         [3, 3],
                                         padding='VALID',
                                         cpu_variables=cpu_variables,
-                                        biases_initializer=None,
+                                        biases_initializer=tf.zeros_initializer(),
                                         scope='conv3.2'))
-    
+
     layers.append(tensornet.layers.batch_normalization(layers[-1],
                                                        train_phase,
                                                        cpu_variables=cpu_variables,
@@ -153,7 +155,7 @@ def inference(images, train_phase, cpu_variables=False):
     layers.append(tf.nn.relu(layers[-1],
                              name='relu3.2'))
 
-   
+
 
 
     layers.append(tf.nn.avg_pool(layers[-1],
@@ -161,8 +163,8 @@ def inference(images, train_phase, cpu_variables=False):
                                  [1,4,4,1],
                                  'SAME',
                                   name='avg_pool_full'))
-    
-    
+
+
     sz = np.prod(layers[-1].get_shape().as_list()[1:])
 
     layers.append(tensornet.layers.linear(tf.reshape(layers[-1], [-1, sz]),
@@ -170,7 +172,7 @@ def inference(images, train_phase, cpu_variables=False):
                                           cpu_variables=cpu_variables,
                                           biases_initializer=None,
                                           scope='linear4.1'))
- 
+
     return layers[-1]
 
 def losses(logits, labels):
@@ -181,7 +183,7 @@ def losses(logits, labels):
     Returns:
         losses: list of loss tensors of type float.
     """
-    xentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, labels, name='xentropy')
+    xentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels, name='xentropy')
     loss = tf.reduce_mean(xentropy, name='loss')
     return [loss]
 
@@ -202,4 +204,3 @@ def evaluation(logits, labels):
     correct_flags = tf.nn.in_top_k(logits, labels, 1)
     # Return the number of true entries.
     return tf.cast(correct_flags, tf.int32)
-

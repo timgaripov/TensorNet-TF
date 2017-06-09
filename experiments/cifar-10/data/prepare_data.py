@@ -17,6 +17,7 @@ def unpickle(fname):
     d = pickle.load(fo)
     fo.close()
     data = np.reshape(d['data'], [-1, 32, 32, 3], order='F')
+    data = np.transpose(data, [0, 2, 1, 3])
     data = np.reshape(data, [-1, 32*32*3])
     labels = np.array(d['labels'], dtype='int8')
     return data, labels
