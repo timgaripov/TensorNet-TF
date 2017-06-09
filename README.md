@@ -28,7 +28,7 @@ In BiBTeX format:
 ```
 
 # Prerequisites
-* [TensorFlow](https://www.tensorflow.org/) (tested with v. 0.7.1)
+* [TensorFlow](https://www.tensorflow.org/) (tested with v. 1.1.0)
 * [NumPy](http://www.numpy.org/)
 
 # MATLAB and Theano
