@@ -378,8 +378,11 @@ def run_training(restore_chkpt=None):
 
             sess.run(vl_assign_op, feed_dict={assign_ph: eval_loss})
             sess.run(vp_assign_op, feed_dict={assign_ph: eval_precision})
-
-            w = os.get_terminal_size().columns
+            
+            if sys.version_info[0] < 3:
+                w = 80
+            else:
+                w = os.get_terminal_size().columns
             sys.stdout.write(('=' * w + '\n') * 2)
 
 
